@@ -9,7 +9,6 @@ JSON Settings:
 Update SetUp like this:
 
 "setUp": [
-
       {
       
         "outputMode": "IP",
@@ -35,7 +34,6 @@ Where outputMode IP outputs to the IP stream and outputMode file outputs to a de
 Input AIT settings like this, as many as needed:
 
 "AITs": [
-
       {
       
         "url": "https://bci-staging-media.s3.eu-west-1.amazonaws.com/HBBTV_test_area/hbbtv-tests/testApp/dev/",
