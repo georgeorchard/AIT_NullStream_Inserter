@@ -1,0 +1,20 @@
+{
+    "AITs": [
+      {
+        "url": "https://bci-staging-media.s3.eu-west-1.amazonaws.com/HBBTV_test_area/hbbtv-tests/testApp/dev/",
+        "initialPath": "index.html?debug=1&api=staging&serviceid=99997",
+        "pid": 901
+      },
+      {
+        "url": "https://bci-staging-media.s3.eu-west-1.amazonaws.com/HBBTV_test_area/hbbtv-tests/testApp/George/",
+        "initialPath": "index.html?debug=1&api=staging&serviceid=99998",
+        "pid": 902
+      },
+      {
+        "url": "https://bci-staging-media.s3.eu-west-1.amazonaws.com/HBBTV_test_area/hbbtv-tests/testApp/Rich/",
+        "initialPath": "index.html?debug=1&api=staging&serviceid=99999",
+        "pid": 903
+      }
+    ]
+  }
+  
