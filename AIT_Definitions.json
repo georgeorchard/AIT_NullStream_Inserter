@@ -1,4 +1,17 @@
-{
+{ 
+
+    "setUp": [
+      {
+        "outputMode": "IP",
+        "outputIP": "192.168.0.1",
+        "outputPort": 1234,
+        "bitRate": 1000000,
+        "fileLengthSeconds": 5,
+        "outputFileName": "output.ts"
+      }
+    ],
+
+
     "AITs": [
       {
         "url": "https://bci-staging-media.s3.eu-west-1.amazonaws.com/HBBTV_test_area/hbbtv-tests/testApp/dev/",
@@ -16,5 +29,7 @@
         "pid": 903
       }
     ]
+
+    
   }
   
