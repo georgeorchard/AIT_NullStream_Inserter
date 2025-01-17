@@ -7,7 +7,7 @@ import os
 
 
 
-def createXMLsFromJSONFile(jsonFile, output_IP_Address):
+def createXMLsFromJSONFile(jsonFile):
     """
     Function to create the XMLs for each individual AIT component defined in the JSON File
     Params: jsonFile - JSON File containing the AIT components
@@ -21,6 +21,18 @@ def createXMLsFromJSONFile(jsonFile, output_IP_Address):
     #Open the JSON File
     with open(jsonFile) as f:
         data = json.load(f)
+
+        #Get information from set-up
+        setUp_Information = data['setUp'][0]
+        outputMode = setUp_Information['outputMode']
+        outputIP = setUp_Information['outputIP']
+        outputPort = setUp_Information['outputPort']
+        bitRate = setUp_Information['bitRate']
+        fileLengthSeconds = setUp_Information['fileLengthSeconds']
+        outputFileName = setUp_Information['outputFileName']
+
+
+
         for i in data['AITs']: #Access the AIT components
 
             #Increment the AIT count
@@ -43,27 +55,38 @@ def createXMLsFromJSONFile(jsonFile, output_IP_Address):
             createAITXML(applicationID, organizationID, url, applicationProfile, applicationVersion, applicationName, initialPath, ait_count)
 
     #Now that all AITs have been created, insert them into the stream 
-    insertAITsIntoStream(ait_count, aitPIDs, output_IP_Address)        
+    #If the output mode is IP, call the function to insert AITs into the stream using IP
+    if outputMode == "IP":
+        insertAITsIntoStream_IP(ait_count, aitPIDs, bitRate, outputIP, outputPort)
+    #Otherwise call the function to insert AITs into the stream using a FILE
+    else:
+        insertAITsIntoStream_File(ait_count, aitPIDs, bitRate, fileLengthSeconds, outputFileName)
+                 
 
-
-
-def insertAITsIntoStream(ait_count, aitPIDs, output_IP_Address):
+def insertAITsIntoStream_IP(ait_count, aitPIDs, bitRate, outputIP, outputPort):
     """
-    Function to inject raw AIT XMLs into the stream using TSDuck.
+    Function to inject raw AIT XMLs into the stream using TSDuck to create a FILE
     Params: 
         ait_count - The number of AITs to inject (e.g., 3 for aitXML1.xml, aitXML2.xml, etc.)
         aitPIDs - The list of PIDs corresponding to each AIT
-        output_IP_Address - The output IP address with port (e.g., "239.255.0.1:1234")
+        bitRate - The bitrate of the stream in bps
+        fileLengthSeconds - The length of the file in seconds
+        outputFileName - The name of the output file
     """
 
     # Check if the number of PIDs matches the number of AITs
     if len(aitPIDs) != ait_count:
         raise ValueError("The number of AIT PIDs must match the AIT count.")
 
+    # Calculate packets per second based on the bitrate
+    packetRate = round(bitRate / (188 * 8))  # 188 bytes per packet, 8 bits per byte
+
     # Base tsp command to create a null stream
     tsp_command = [
         "tsp",
         "-I", "null",  # Start with a null stream
+        "-P", "regulate",
+        "--bitrate", str(bitRate)  # Set the bitrate
     ]
 
     # Loop over each AIT XML and add to the tsp command
@@ -74,12 +97,71 @@ def insertAITsIntoStream(ait_count, aitPIDs, output_IP_Address):
         tsp_command += [
             "-P", "inject", ait_xml_file+"=1000",  # Inject the AIT XML file with 1000ms interval
             "--pid", str(pid),  # Set the PID for the AIT
-            "--inter-packet", "1000"  # Set the interval to 1000ms
+            "--inter-packet", str(packetRate)  # Set the interval to 665 packets which is one packet a second at 1000000
         ]
 
     # Output the final stream to the specified IP address
     tsp_command += [
-        "-O", "file", "output.ts"  # Output to a file (can change to IP if needed)
+        "-O", "ip", str(outputIP)+":"+str(outputPort)  # Output to an IP
+    ]
+
+
+    print(f"Running TSDuck command: {' '.join(tsp_command)}")
+
+    # Run the TSDuck command
+    try:
+        process = subprocess.Popen(tsp_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout, stderr = process.communicate()
+        if process.returncode == 0:
+            print("AIT injection and stream output completed successfully.")
+        else:
+            print(f"Error in TSDuck processing: {stderr.decode('utf-8')}")
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+def insertAITsIntoStream_File(ait_count, aitPIDs, bitRate, fileLengthSeconds, outputFileName):
+    """
+    Function to inject raw AIT XMLs into the stream using TSDuck to create a FILE
+    Params: 
+        ait_count - The number of AITs to inject (e.g., 3 for aitXML1.xml, aitXML2.xml, etc.)
+        aitPIDs - The list of PIDs corresponding to each AIT
+        bitRate - The bitrate of the stream in bps
+        fileLengthSeconds - The length of the file in seconds
+        outputFileName - The name of the output file
+    """
+
+    # Check if the number of PIDs matches the number of AITs
+    if len(aitPIDs) != ait_count:
+        raise ValueError("The number of AIT PIDs must match the AIT count.")
+
+    # Calculate packets per second based on the bitrate
+    packetRate = round(bitRate / (188 * 8))  # 188 bytes per packet, 8 bits per byte
+    
+    # Calculate the number of packets to generate based on the packet rate and file length
+    numPackets = round(packetRate * fileLengthSeconds)
+
+    # Base tsp command to create a null stream
+    tsp_command = [
+        "tsp",
+        "-I", "null", str(numPackets),  # Start with a null stream
+        "-P", "regulate",
+        "--bitrate", str(bitRate)  # Set the bitrate
+    ]
+
+    # Loop over each AIT XML and add to the tsp command
+    for i in range(ait_count):
+        ait_xml_file = f"aitXML{i+1}.xml"  # Generate the XML file name (e.g., aitXML1.xml)
+
+        pid = aitPIDs[i]  # Get the corresponding PID for this AIT
+        tsp_command += [
+            "-P", "inject", ait_xml_file+"=1000",  # Inject the AIT XML file with 1000ms interval
+            "--pid", str(pid),  # Set the PID for the AIT
+            "--inter-packet", str(packetRate)  # Set the interval to 665 packets which is one packet a second at 1000000
+        ]
+
+    # Output the final stream to the specified IP address
+    tsp_command += [
+        "-O", "file", "output.ts"  # Output to a file 
     ]
 
 
@@ -189,11 +271,6 @@ if __name__ == "__main__":
     #The JSON File path is the first argument from the command line
     ait_json_file = argv[1]
 
-    #The output IP Address is the second argument from the command line
-    output_IP_Address = argv[2]
-
-
-
     #Call the function to create the XMLs from the JSON File
-    createXMLsFromJSONFile(ait_json_file, output_IP_Address)
+    createXMLsFromJSONFile(ait_json_file)
     
