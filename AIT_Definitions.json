@@ -3,8 +3,8 @@
     "setUp": [
       {
         "outputMode": "IP",
-        "outputIP": "192.168.0.1",
-        "outputPort": 1234,
+        "outputIP": "10.0.1.24",
+        "outputPort": 5000,
         "bitRate": 1000000,
         "fileLengthSeconds": 5,
         "outputFileName": "output.ts"

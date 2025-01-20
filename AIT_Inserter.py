@@ -102,7 +102,7 @@ def insertAITsIntoStream_IP(ait_count, aitPIDs, bitRate, outputIP, outputPort):
 
     # Output the final stream to the specified IP address
     tsp_command += [
-        "-O", "ip", str(outputIP)+":"+str(outputPort)  # Output to an IP
+        "-O", "ip", "--packet-burst 7 --enforce-burst", str(outputIP)+":"+str(outputPort)  # Output to an IP
     ]
 
 
