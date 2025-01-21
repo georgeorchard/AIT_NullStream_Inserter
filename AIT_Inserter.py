@@ -4,6 +4,9 @@ import xml.etree.ElementTree as ET
 import subprocess
 import time
 import os
+import signal
+import threading
+
 
 
 
@@ -62,6 +65,13 @@ def createXMLsFromJSONFile(jsonFile):
     else:
         insertAITsIntoStream_File(ait_count, aitPIDs, bitRate, fileLengthSeconds, outputFileName)
                  
+# Function to terminate the subprocess on "Enter"
+# Function to terminate the subprocess on "Enter"
+def wait_for_termination(process):
+    input("Press 'Enter' to stop the stream...\n")
+    process.terminate()  # Gracefully terminate the process on Windows
+    process.wait()  # Wait for the process to finish
+    print("Process terminated successfully.")
 
 def insertAITsIntoStream_IP(ait_count, aitPIDs, bitRate, outputIP, outputPort):
     """
@@ -102,7 +112,7 @@ def insertAITsIntoStream_IP(ait_count, aitPIDs, bitRate, outputIP, outputPort):
 
     # Output the final stream to the specified IP address
     tsp_command += [
-        "-O", "ip", "--packet-burst 7 --enforce-burst", str(outputIP)+":"+str(outputPort)  # Output to an IP
+        "-O", "ip", "--packet-burst", "7", "--enforce-burst", str(outputIP)+":"+str(outputPort)  # Output to an IP
     ]
 
 
@@ -110,12 +120,23 @@ def insertAITsIntoStream_IP(ait_count, aitPIDs, bitRate, outputIP, outputPort):
 
     # Run the TSDuck command
     try:
-        process = subprocess.Popen(tsp_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        stdout, stderr = process.communicate()
-        if process.returncode == 0:
-            print("AIT injection and stream output completed successfully.")
-        else:
-            print(f"Error in TSDuck processing: {stderr.decode('utf-8')}")
+        process = subprocess.Popen(tsp_command, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        #stdout, stderr = process.communicate()
+
+
+
+        # Start a thread to monitor for "Enter" key press
+        termination_thread = threading.Thread(target=wait_for_termination, args=(process,))
+        termination_thread.start()
+
+        # Continuously read subprocess output
+        while process.poll() is None:
+            output = process.stdout.readline()
+            if output:
+                print(output.decode().strip())
+        
+        termination_thread.join()  # Wait for the termination thread to finish
+
     except Exception as e:
         print(f"An error occurred: {e}")
 
